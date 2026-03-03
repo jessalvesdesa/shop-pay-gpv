@@ -505,24 +505,6 @@ function buildQueries(days) {
       ORDER BY date ASC
     `,
 
-    gpvByPaymentType: `
-      SELECT
-        COALESCE(payment_details_type, 'Unknown') AS payment_type,
-        SUM(amount_presentment) AS gpv,
-        COUNT(*) AS txn_count,
-        COUNT(DISTINCT shop_id) AS shop_count,
-        AVG(amount_presentment) AS avg_txn
-      FROM \`shopify-dw.money_products.order_transactions_payments_summary\`
-      WHERE order_transaction_created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${interval})
-        AND order_transaction_kind = 'sale'
-        AND order_transaction_status = 'success'
-        AND is_test = FALSE
-        AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
-      GROUP BY 1
-      ORDER BY gpv DESC
-      LIMIT 12
-    `,
-
     gpvByCountry: `
       SELECT
         COALESCE(shop_country_name, 'Unknown') AS country,
@@ -572,15 +554,14 @@ async function loadDashboard() {
   const queries = buildQueries(currentDays);
 
   try {
-    const [gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry] = await Promise.all([
+    const [gpvByWallet, gpvTrend, gpvByCountry] = await Promise.all([
       runQuery(queries.gpvByWallet),
       runQuery(queries.gpvTrend),
-      runQuery(queries.gpvByPaymentType),
       runQuery(queries.gpvByCountry),
     ]);
 
     loading.style.display = 'none';
-    renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry);
+    renderDashboard(gpvByWallet, gpvTrend, gpvByCountry);
   } catch (err) {
     loading.style.display = 'none';
     document.getElementById('dashboardContent').innerHTML += `
@@ -595,7 +576,7 @@ async function loadDashboard() {
   }
 }
 
-function renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry) {
+function renderDashboard(gpvByWallet, gpvTrend, gpvByCountry) {
   const totalGPV = gpvByWallet.reduce((s, r) => s + Number(r.gpv || 0), 0);
   const shopPayRow = gpvByWallet.find(r => r.wallet_type === 'shopify_pay');
   const shopPayGPV = shopPayRow ? Number(shopPayRow.gpv) : 0;
@@ -651,17 +632,10 @@ function renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry) 
       </div>
     </div>
 
-    <div class="bottom-grid">
-      <div class="chart-card" data-dashboard-element="payment-method-chart">
-        <div class="chart-title">Payment Method GPV</div>
-        <div class="chart-subtitle">All gateways — top payment types by USD volume</div>
-        <div class="chart-container bar">
-          <canvas id="paymentChart"></canvas>
-        </div>
-      </div>
+    <div class="bottom-grid" style="grid-template-columns: 1fr;">
       <div class="chart-card" data-dashboard-element="country-table">
         <div class="chart-title">Shop Pay GPV by Country</div>
-        <div class="chart-subtitle">Top markets by dollar volume</div>
+        <div class="chart-subtitle">Top markets by dollar volume · <span style="color: var(--amber);">*</span> = historically ~1.5% of all Shop Pay GPV</div>
         <div class="table-wrapper">
           <table>
             <thead>
@@ -683,7 +657,6 @@ function renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry) 
 
   renderWalletChart(gpvByWallet, totalGPV);
   renderTrendChart(gpvTrend);
-  renderPaymentChart(gpvByPaymentType);
   renderGeoTable(gpvByCountry);
 }
 
@@ -830,57 +803,6 @@ function renderTrendChart(data) {
   });
 }
 
-function renderPaymentChart(data) {
-  const labels = data.map(r => friendlyPaymentType(r.payment_type));
-  const values = data.map(r => Number(r.gpv));
-  const total = values.reduce((a, b) => a + b, 0);
-
-  new Chart(document.getElementById('paymentChart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        backgroundColor: PAYMENT_COLORS.slice(0, data.length),
-        borderRadius: 4,
-        borderSkipped: false,
-        barThickness: 20,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: 'y',
-      scales: {
-        x: {
-          grid: { color: 'rgba(30,41,59,0.5)' },
-          ticks: { color: '#64748b', font: { size: 11 }, callback: v => formatUSD(v) }
-        },
-        y: {
-          grid: { display: false },
-          ticks: { color: '#94a3b8', font: { size: 11 } }
-        }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#f8fafc',
-          bodyColor: '#e2e8f0',
-          borderColor: '#334155',
-          borderWidth: 1,
-          callbacks: {
-            label: ctx => {
-              const pct = ((ctx.raw / total) * 100).toFixed(1);
-              return ` ${formatUSD(ctx.raw)} (${pct}%)`;
-            }
-          }
-        }
-      }
-    }
-  });
-}
-
 function renderGeoTable(data) {
   const maxGPV = data.length > 0 ? Number(data[0].gpv) : 1;
   const tbody = document.getElementById('geoTableBody');
@@ -890,9 +812,10 @@ function renderGeoTable(data) {
     const shops = Number(r.shops_using);
     const barWidth = Math.max(4, (gpv / maxGPV) * 100);
     const pctClass = gpv / maxGPV > 0.3 ? 'high' : gpv / maxGPV > 0.1 ? 'mid' : 'low';
+    const note = r.country === 'Japan' ? ' <span style="color: var(--amber); font-size: 11px;" title="Historically ~1.5% of all Shop Pay GPV">*</span>' : '';
     return `<tr>
       <td class="rank">${i + 1}</td>
-      <td>${r.country}</td>
+      <td>${r.country}${note}</td>
       <td class="right">${formatUSDCompact(gpv)}</td>
       <td class="right">${formatUSDCompact(avgTxn)}</td>
       <td class="right">${formatNumber(shops)}</td>
