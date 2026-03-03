@@ -611,9 +611,12 @@ async function runQuery(sql) {
 }
 
 async function loadDashboard() {
-  const loading = document.getElementById('loadingState');
-  loading.style.display = 'flex';
-  loading.querySelector('.loading-text').textContent = 'Querying BigQuery...';
+  const content = document.getElementById('dashboardContent');
+  content.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div class="loading-text">Querying BigQuery...</div>
+    </div>`;
 
   document.getElementById('timeControls').style.display = 'flex';
 
@@ -626,11 +629,9 @@ async function loadDashboard() {
       runQuery(queries.gpvByCountry),
     ]);
 
-    loading.style.display = 'none';
     renderDashboard(gpvByWallet, gpvTrend, gpvByCountry);
   } catch (err) {
-    loading.style.display = 'none';
-    document.getElementById('dashboardContent').innerHTML += `
+    content.innerHTML = `
       <div class="error-state">
         <strong>Query Error:</strong> ${err.message || 'Failed to load data from BigQuery.'}
         <br><br>
