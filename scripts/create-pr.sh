@@ -22,7 +22,7 @@ PR_URL=$(gh pr create \
     --head "$BRANCH" \
     --title "$TITLE" \
     --body "$BODY" \
-    --repo shopify-playground/shop-pay-gpv \
+    --repo jessalvesdesa/shop-pay-gpv \
     2>&1)
 
 echo "$PR_URL"
