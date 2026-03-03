@@ -331,6 +331,31 @@
       color: var(--text-dim);
     }
 
+    .query-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .query-block summary {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .query-block pre {
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-dim);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
     @media (max-width: 900px) {
       .metrics-row { grid-template-columns: repeat(2, 1fr); }
       .charts-grid { grid-template-columns: 1fr; }
@@ -658,6 +683,7 @@ function renderDashboard(gpvByWallet, gpvTrend, gpvByCountry) {
   renderWalletChart(gpvByWallet, totalGPV);
   renderTrendChart(gpvTrend);
   renderGeoTable(gpvByCountry);
+  renderQueryDisplay();
 }
 
 function renderWalletChart(data, total) {
@@ -838,6 +864,23 @@ document.querySelectorAll('.time-btn').forEach(btn => {
   });
 });
 
+function renderQueryDisplay() {
+  const queries = buildQueries(currentDays);
+  const display = document.getElementById('queryDisplay');
+  if (!display) return;
+
+  const names = {
+    gpvByWallet: 'GPV by Wallet (KPIs + doughnut chart)',
+    gpvTrend: 'Daily GPV Trend (line chart)',
+    gpvByCountry: 'Shop Pay GPV by Country (table)',
+  };
+
+  display.innerHTML = Object.entries(queries).map(([key, sql]) => {
+    const clean = sql.replace(/\\`/g, '`').trim();
+    return `<details class="query-block"><summary>${names[key] || key}</summary><pre>${clean}</pre></details>`;
+  }).join('');
+}
+
 // --- GitHub issue automation from QuickComments ---
 const GH_REPO = 'jessalvesdesa/shop-pay-gpv';
 let ghToken = null;
@@ -959,8 +1002,16 @@ init();
 </script>
 
 <div class="footer">
-  <span>Shop Pay GPV · Data from <code>shopify-dw.money_products.order_transactions_payments_summary</code></span>
-  <span>Built with Quick</span>
+  <div style="width: 100%; margin-bottom: 16px;">
+    <details>
+      <summary style="cursor: pointer; font-size: 12px; color: var(--text-dim); user-select: none;">Show queries</summary>
+      <div id="queryDisplay" style="margin-top: 12px; display: flex; flex-direction: column; gap: 12px;"></div>
+    </details>
+  </div>
+  <div style="display: flex; justify-content: space-between; width: 100%;">
+    <span>Shop Pay GPV · Data from <code>shopify-dw.money_products.order_transactions_payments_summary</code></span>
+    <span>Built with Quick</span>
+  </div>
 </div>
 
 </body>
