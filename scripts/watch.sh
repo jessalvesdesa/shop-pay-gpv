@@ -1,105 +1,79 @@
 #!/usr/bin/env bash
-# Watch for new QuickComments and post them to Slack.
+# Watch for new QuickComments via the Quick app Slack DM and forward to team channel.
+#
 # Usage: bash scripts/watch.sh
 #
-# Polls the Quick DB every 30 seconds for unresolved comments.
-# When a new comment appears, posts it to the configured Slack channel.
-# Keeps track of seen comment IDs so it only notifies once per comment.
-#
-# The agent workflow is:
-#   1. Leave this running in a terminal
-#   2. Someone comments on the dashboard
-#   3. This script posts the comment to Slack
-#   4. An agent (Cursor, Codex, etc.) picks it up and runs:
-#      bash scripts/implement.sh "comment text here"
+# Polls the Quick app DM (where QuickComments posts notifications) every 20 seconds.
+# When a new comment about shop-pay-gpv appears, re-posts it to the team channel.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-SITE="shop-pay-gpv"
-SEEN_FILE="/tmp/shop-pay-gpv-seen-comments.txt"
-POLL_INTERVAL="${1:-30}"
-
-# TODO: Create a Slack channel and put its ID here
-SLACK_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-C0AHPAUT6KH}"
-
-if [ "$SLACK_CHANNEL" = "REPLACE_WITH_CHANNEL_ID" ]; then
-    echo "Set SHOP_PAY_GPV_SLACK_CHANNEL or edit this script with your channel ID."
-    echo ""
-    echo "To create a channel:"
-    echo "  1. Go to Slack → Create channel → #shop-pay-gpv-agent"
-    echo "  2. Right-click channel name → View channel details → copy the Channel ID"
-    echo "  3. Run: SHOP_PAY_GPV_SLACK_CHANNEL=C0XXXXX bash scripts/watch.sh"
-    exit 1
-fi
+QUICK_DM="D0AJ2M0L3AS"
+TEAM_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-C0AHPAUT6KH}"
+SITE_HOST="shop-pay-gpv.quick.shopify.io"
+POLL_INTERVAL="${1:-20}"
+SEEN_FILE="/tmp/shop-pay-gpv-seen-ts.txt"
 
 touch "$SEEN_FILE"
 
-echo "Watching $SITE for new comments (every ${POLL_INTERVAL}s)..."
-echo "Slack channel: $SLACK_CHANNEL"
-echo "Press Ctrl+C to stop."
+echo "Watching Quick app DM for comments on $SITE_HOST..."
+echo "Forwarding to channel: $TEAM_CHANNEL"
+echo "Polling every ${POLL_INTERVAL}s. Ctrl+C to stop."
 echo "────────────────────────────────────────────────────────"
 
 while true; do
-    RESPONSE=$( (
-        echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"watcher","version":"1.0"}}}'
-        sleep 2
-        echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_collection","arguments":{"collection":"quickcomments","sort":"-created_at"}}}'
-        sleep 4
-    ) | quick mcp "$SITE" 2>/dev/null || echo "" )
+    MESSAGES=$(npx -y @shopify-internal/slack-mcp@latest get-messages \
+        --action channel \
+        --channel "$QUICK_DM" \
+        --count 10 \
+        --output_format json 2>/dev/null || echo "[]")
 
-    if [ -z "$RESPONSE" ]; then
-        sleep "$POLL_INTERVAL"
-        continue
-    fi
-
-    PARSED=$(echo "$RESPONSE" | grep '"id":1' | python3 -c "
+    echo "$MESSAGES" | python3 -c "
 import sys, json
-line = sys.stdin.read().strip()
-if not line:
-    sys.exit(0)
+
 try:
-    resp = json.loads(line)
-    text = resp.get('result',{}).get('content',[{}])[0].get('text','[]')
-    comments = json.loads(text)
-    for c in comments:
-        if c.get('resolved'):
-            continue
-        cid = c.get('id','')
-        anchor = c.get('anchor',{}).get('selector','?')
-        author = c.get('author',{}).get('name','Unknown')
-        body = c.get('text','')
-        print(f'{cid}|{author}|{anchor}|{body}')
+    data = json.load(sys.stdin)
 except:
-    pass
-" 2>/dev/null || echo "")
+    sys.exit(0)
 
-    if [ -n "$PARSED" ]; then
-        while IFS= read -r line; do
-            CID=$(echo "$line" | cut -d'|' -f1)
-            AUTHOR=$(echo "$line" | cut -d'|' -f2)
-            ANCHOR=$(echo "$line" | cut -d'|' -f3)
-            BODY=$(echo "$line" | cut -d'|' -f4-)
+messages = data if isinstance(data, list) else data.get('messages', [])
+site = '$SITE_HOST'
+seen_file = '$SEEN_FILE'
 
-            if grep -qF "$CID" "$SEEN_FILE" 2>/dev/null; then
-                continue
-            fi
+with open(seen_file) as f:
+    seen = set(f.read().strip().split('\n'))
 
-            echo "$CID" >> "$SEEN_FILE"
+for msg in messages:
+    ts = msg.get('ts', '')
+    text = msg.get('text', '')
+    if ts in seen or site not in text:
+        continue
+    # Extract the comment text (after 'commented:' or '>')
+    lines = text.split('\n')
+    comment = ''
+    author = ''
+    for line in lines:
+        if 'commented' in line.lower():
+            author = line.split('*')[1] if '*' in line else ''
+        if line.strip().startswith('>'):
+            comment = line.strip().lstrip('> ').strip()
+    if comment:
+        print(f'{ts}|{author}|{comment}')
+        with open(seen_file, 'a') as f:
+            f.write(ts + '\n')
+" 2>/dev/null | while IFS='|' read -r TS AUTHOR COMMENT; do
+        NOW=$(date '+%H:%M:%S')
+        echo "[$NOW] $AUTHOR: $COMMENT"
 
-            TIMESTAMP=$(date '+%H:%M:%S')
-            echo "[$TIMESTAMP] New comment from $AUTHOR on [$ANCHOR]: $BODY"
+        MSG="New comment on *shop-pay-gpv* dashboard\n\n*From:* ${AUTHOR}\n*Comment:* ${COMMENT}\n\nTo implement, open the repo in Cursor and say:\n\`bash scripts/implement.sh \"${COMMENT}\"\`"
 
-            MSG="New dashboard comment on *shop-pay-gpv*\n\n*From:* ${AUTHOR}\n*Element:* \`${ANCHOR}\`\n*Comment:* ${BODY}\n\nTo implement: clone the repo and run \`bash scripts/implement.sh \"${BODY}\"\`"
-
-            npx -y @shopify-internal/slack-mcp@latest send-message \
-                --target "$SLACK_CHANNEL" \
-                --text "$MSG" 2>/dev/null || echo "  (Slack send failed)"
-
-        done <<< "$PARSED"
-    fi
+        npx -y @shopify-internal/slack-mcp@latest send-message \
+            --target "$TEAM_CHANNEL" \
+            --text "$MSG" 2>/dev/null && echo "  → Posted to Slack" || echo "  → Slack send failed"
+    done
 
     sleep "$POLL_INTERVAL"
 done
