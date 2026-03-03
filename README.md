@@ -27,13 +27,31 @@ That's it. You don't need to touch code, clone the repo, or run anything locally
 
 Data source: `shopify-dw.money_products.order_transactions_payments_summary` (`amount_presentment`)
 
+## Setup (one-time)
+
+1. Create a Slack channel called `#shop-pay-gpv-agent`
+2. Copy the channel ID (right-click channel name → View channel details)
+3. Start the watcher:
+
+```bash
+SHOP_PAY_GPV_SLACK_CHANNEL=C0XXXXX bash scripts/watch.sh
+```
+
+New comments will appear in Slack. An agent (Cursor, Codex, etc.) picks them up and runs:
+
+```bash
+bash scripts/implement.sh "the requested change"
+# make code changes to site/index.html
+bash scripts/ship.sh "feat: the requested change"
+```
+
+PR preview auto-deploys at `shop-pay-gpv-pr-{N}.quick.shopify.io`. Merge to ship.
+
 ## For developers
 
 ```bash
 quick serve site shop-pay-gpv   # local dev
 quick deploy site shop-pay-gpv  # manual deploy
 ```
-
-PRs that touch `site/` get a preview at `shop-pay-gpv-pr-{N}.quick.shopify.io`. Merges to `main` auto-deploy.
 
 Repo: https://github.com/jessalvesdesa/shop-pay-gpv
