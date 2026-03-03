@@ -23,7 +23,7 @@ SEEN_FILE="/tmp/shop-pay-gpv-seen-comments.txt"
 POLL_INTERVAL="${1:-30}"
 
 # TODO: Create a Slack channel and put its ID here
-SLACK_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-REPLACE_WITH_CHANNEL_ID}"
+SLACK_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-C0AHPAUT6KH}"
 
 if [ "$SLACK_CHANNEL" = "REPLACE_WITH_CHANNEL_ID" ]; then
     echo "Set SHOP_PAY_GPV_SLACK_CHANNEL or edit this script with your channel ID."

@@ -11,7 +11,7 @@ MESSAGE="${1:?Usage: ship.sh \"feat: description\"}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPTS="$REPO_ROOT/scripts"
 
-SLACK_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-REPLACE_WITH_CHANNEL_ID}"
+SLACK_CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-C0AHPAUT6KH}"
 
 echo "Shipping..."
 

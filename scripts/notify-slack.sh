@@ -7,7 +7,7 @@ set -euo pipefail
 PR_URL="${1:?Usage: notify-slack.sh \"PR_URL\" [thread_ts]}"
 THREAD_TS="${2:-""}"
 # TODO: Update this to your team's Slack channel ID
-CHANNEL="REPLACE_WITH_CHANNEL_ID"
+CHANNEL="${SHOP_PAY_GPV_SLACK_CHANNEL:-C0AHPAUT6KH}"
 
 PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
 PREVIEW_URL=""
