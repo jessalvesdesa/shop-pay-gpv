@@ -99,6 +99,28 @@
     .time-btn:hover { border-color: var(--green); color: var(--text); }
     .time-btn.active { background: var(--green); color: white; border-color: var(--green); }
 
+    .filter-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .geo-btn {
+      background: var(--bg-card);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .geo-btn:hover { border-color: var(--green); color: var(--text); }
+    .geo-btn.active { background: rgba(0, 128, 96, 0.15); color: var(--green-light); border-color: var(--green); }
+
     .auth-bar {
       max-width: 1400px;
       margin: 0 auto;
@@ -387,6 +409,10 @@
   <button class="time-btn" data-days="7">7D</button>
   <button class="time-btn active" data-days="30">30D</button>
   <button class="time-btn" data-days="90">90D</button>
+  <div class="filter-divider"></div>
+  <button class="geo-btn active" data-geo="US">US</button>
+  <button class="geo-btn active" data-geo="CA">Canada</button>
+  <button class="geo-btn active" data-geo="ROW">Rest of World</button>
 </div>
 
 <div class="auth-bar" id="authBar" style="display:none; padding-bottom: 16px;">
@@ -487,11 +513,23 @@ function friendlyPaymentType(name) {
 }
 
 let currentDays = 30;
+let currentGeo = new Set(['US', 'CA', 'ROW']);
 let chartsRendered = {};
+
+function buildGeoFilter() {
+  if (currentGeo.size === 3) return '';
+  if (currentGeo.size === 0) return "AND 1=0";
+  const clauses = [];
+  if (currentGeo.has('US')) clauses.push("shop_country_code = 'US'");
+  if (currentGeo.has('CA')) clauses.push("shop_country_code = 'CA'");
+  if (currentGeo.has('ROW')) clauses.push("shop_country_code NOT IN ('US', 'CA')");
+  return `AND (${clauses.join(' OR ')})`;
+}
 
 function buildQueries(days) {
   const interval = `INTERVAL ${days} DAY`;
   const extractBuffer = `INTERVAL ${days + 5} DAY`;
+  const geoFilter = buildGeoFilter();
 
   return {
     gpvByWallet: `
@@ -509,6 +547,7 @@ function buildQueries(days) {
         AND is_shopify_payments_gateway = TRUE
         AND is_test = FALSE
         AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+        ${geoFilter}
       GROUP BY 1
       ORDER BY gpv DESC
     `,
@@ -526,6 +565,7 @@ function buildQueries(days) {
         AND is_shopify_payments_gateway = TRUE
         AND is_test = FALSE
         AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+        ${geoFilter}
       GROUP BY 1, 2
       ORDER BY date ASC
     `,
@@ -545,6 +585,7 @@ function buildQueries(days) {
         AND card_wallet_type = 'shopify_pay'
         AND is_test = FALSE
         AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+        ${geoFilter}
       GROUP BY 1, 2
       ORDER BY gpv DESC
       LIMIT 15
@@ -880,6 +921,23 @@ function renderQueryDisplay() {
     return `<details class="query-block"><summary>${names[key] || key}</summary><pre>${clean}</pre></details>`;
   }).join('');
 }
+
+// Geo filters (multi-select toggle)
+document.querySelectorAll('.geo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const geo = btn.dataset.geo;
+    if (currentGeo.has(geo)) {
+      if (currentGeo.size > 1) {
+        currentGeo.delete(geo);
+        btn.classList.remove('active');
+      }
+    } else {
+      currentGeo.add(geo);
+      btn.classList.add('active');
+    }
+    loadDashboard();
+  });
+});
 
 // Boot
 async function init() {
