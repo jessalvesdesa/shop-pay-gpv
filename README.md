@@ -9,10 +9,11 @@ Shop Pay Gross Payment Volume dashboard. BigQuery data, auto-updating via commen
 1. Go to https://shop-pay-gpv.quick.shopify.io
 2. Click the QuickComments icon on any chart, table, or metric card
 3. Leave a comment describing what you want changed (e.g. "break this out by installments vs non-installments" or "add a week-over-week delta")
-4. An agent picks up your comment, makes the change, and opens a PR with a preview link
-5. Review the preview, leave follow-up comments if needed, merge when it looks right
+4. A GitHub issue is automatically created and assigned to Copilot
+5. Copilot implements the change and opens a PR with a preview
+6. Review the preview, merge when it looks right — production auto-deploys
 
-That's it. You don't need to touch code, clone the repo, or run anything locally.
+No code, no repo, no terminal needed.
 
 ## What's on the dashboard
 
@@ -27,25 +28,19 @@ That's it. You don't need to touch code, clone the repo, or run anything locally
 
 Data source: `shopify-dw.money_products.order_transactions_payments_summary` (`amount_presentment`)
 
-## Setup (one-time)
+## How the automation works
 
-1. Create a Slack channel called `#shop-pay-gpv-agent`
-2. Copy the channel ID (right-click channel name → View channel details)
-3. Start the watcher:
-
-```bash
-SHOP_PAY_GPV_SLACK_CHANNEL=C0XXXXX bash scripts/watch.sh
+```
+QuickComment on dashboard
+  → Dashboard JS detects new comment (Quick DB subscription)
+  → Creates GitHub issue (labeled "agent", assigned to @copilot)
+  → Copilot coding agent implements the change
+  → Opens PR → preview deploys at shop-pay-gpv-pr-N.quick.shopify.io
+  → Human reviews and merges
+  → deploy.yml ships to production
 ```
 
-New comments will appear in Slack. An agent (Cursor, Codex, etc.) picks them up and runs:
-
-```bash
-bash scripts/implement.sh "the requested change"
-# make code changes to site/index.html
-bash scripts/ship.sh "feat: the requested change"
-```
-
-PR preview auto-deploys at `shop-pay-gpv-pr-{N}.quick.shopify.io`. Merge to ship.
+First-time users will see a GitHub OAuth popup to authorize issue creation.
 
 ## For developers
 

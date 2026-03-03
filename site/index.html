@@ -915,6 +915,103 @@ document.querySelectorAll('.time-btn').forEach(btn => {
   });
 });
 
+// --- GitHub issue automation from QuickComments ---
+const GH_REPO = 'jessalvesdesa/shop-pay-gpv';
+let ghToken = null;
+
+async function initCommentAutomation() {
+  try {
+    const tokenData = await quick.auth.github.getToken(['repo']);
+    ghToken = tokenData.access_token;
+  } catch {
+    console.log('GitHub auth skipped — comment-to-issue automation disabled');
+    return;
+  }
+
+  const processed = quick.db.collection('processed_comments');
+  const comments = quick.db.collection('quickcomments');
+
+  comments.subscribe({
+    onCreate: (comment) => {
+      if (!comment.resolved) handleNewComment(comment, processed);
+    }
+  });
+
+  try {
+    const existing = await comments.find();
+    for (const comment of existing) {
+      if (comment.resolved) continue;
+      await handleNewComment(comment, processed);
+    }
+  } catch (e) {
+    console.log('Could not check existing comments:', e.message);
+  }
+}
+
+async function handleNewComment(comment, processed) {
+  const check = await processed.where({ comment_id: comment.id }).find();
+  if (check.length > 0) return;
+
+  const element = comment.anchor?.selector || 'unknown element';
+  const author = comment.author?.name || 'Unknown';
+  const text = comment.text || '';
+  if (!text.trim()) return;
+
+  const title = text.length > 80 ? text.substring(0, 77) + '...' : text;
+  const body = [
+    `**Dashboard comment from ${author}**`,
+    '',
+    `> ${text}`,
+    '',
+    `**Element:** \`${element}\``,
+    `**Dashboard:** https://shop-pay-gpv.quick.shopify.io`,
+    '',
+    '---',
+    'Auto-created from a QuickComment on the Shop Pay GPV dashboard.',
+    'The dashboard is a single file: `site/index.html`.',
+  ].join('\n');
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GH_REPO}/issues`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${ghToken}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, body, labels: ['agent'], assignees: ['copilot'] }),
+    });
+
+    if (res.ok) {
+      const issue = await res.json();
+      await processed.create({ comment_id: comment.id, issue_url: issue.html_url });
+      console.log(`Issue #${issue.number} created: ${text}`);
+    } else {
+      const err = await res.json();
+      if (err.errors?.some(e => e.code === 'invalid' && e.field === 'assignees')) {
+        const retry = await fetch(`https://api.github.com/repos/${GH_REPO}/issues`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${ghToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title, body, labels: ['agent'] }),
+        });
+        if (retry.ok) {
+          const issue = await retry.json();
+          await processed.create({ comment_id: comment.id, issue_url: issue.html_url });
+          console.log(`Issue #${issue.number} created (without copilot assignee): ${text}`);
+        }
+      } else {
+        console.error('Issue creation failed:', err);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to create issue:', e);
+  }
+}
+
 // Boot
 async function init() {
   try {
@@ -924,6 +1021,7 @@ async function init() {
         'https://www.googleapis.com/auth/bigquery'
       ]);
       loadDashboard();
+      initCommentAutomation();
     } catch {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('authBar').style.display = 'block';
