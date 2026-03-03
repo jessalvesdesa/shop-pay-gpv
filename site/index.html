@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop Pay GPV</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --green: #008060;
+      --green-light: #00a67e;
+      --green-dark: #006e52;
+      --green-glow: rgba(0, 128, 96, 0.25);
+      --bg: #0a0f1a;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2235;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-bright: #f8fafc;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --purple: #a855f7;
+      --amber: #f59e0b;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .header {
+      padding: 24px 24px 0;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-left: 44px;
+      margin-bottom: 20px;
+    }
+
+    .time-controls {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .time-btn {
+      background: var(--bg-card);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .time-btn:hover { border-color: var(--green); color: var(--text); }
+    .time-btn.active { background: var(--green); color: white; border-color: var(--green); }
+
+    .auth-bar {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .auth-btn {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .auth-btn:hover { background: var(--green-light); }
+
+    .dashboard {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px 40px;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .metric-card:hover { border-color: var(--green); }
+
+    .metric-card.hero {
+      border-color: var(--green-dark);
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0, 128, 96, 0.08) 100%);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-bright);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .metric-value.money { font-variant-numeric: tabular-nums; }
+
+    .metric-detail {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .metric-detail .up { color: var(--green-light); }
+    .metric-detail .down { color: var(--red); }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .chart-card:hover { border-color: var(--green); }
+
+    .chart-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 4px;
+    }
+
+    .chart-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .chart-container.line { height: 300px; }
+    .chart-container.doughnut { height: 300px; }
+    .chart-container.bar { height: 300px; }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .table-wrapper { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    th.right, td.right { text-align: right; }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+      color: var(--text);
+    }
+
+    tr:hover td { background: rgba(0, 128, 96, 0.05); }
+
+    .rank { color: var(--text-dim); font-weight: 500; }
+
+    .bar-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mini-bar {
+      height: 6px;
+      background: var(--green);
+      border-radius: 3px;
+      opacity: 0.7;
+    }
+
+    .pct-badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pct-badge.high { background: rgba(0, 166, 126, 0.15); color: var(--green-light); }
+    .pct-badge.mid { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
+    .pct-badge.low { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { color: var(--text-dim); font-size: 14px; }
+
+    .error-state {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      color: var(--red);
+      font-size: 14px;
+    }
+
+    .source-tag {
+      display: inline-block;
+      background: rgba(0, 128, 96, 0.15);
+      color: var(--green-light);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      font-weight: 500;
+    }
+
+    .footer {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 900px) {
+      .metrics-row { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 20px; }
+      .metric-value { font-size: 24px; }
+    }
+
+    @media (max-width: 500px) {
+      .metrics-row { grid-template-columns: 1fr; }
+      .header { padding: 16px 16px 0; }
+      .dashboard { padding: 0 16px 32px; }
+      .subtitle { margin-left: 0; }
+      .time-controls { padding: 0 16px 16px; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">$</div>
+    <h1>Shop Pay GPV</h1>
+  </div>
+  <p class="subtitle">Gross Payment Volume through Shop Pay — from BigQuery</p>
+</div>
+
+<div class="time-controls" id="timeControls" style="display: none;">
+  <button class="time-btn" data-days="7">7D</button>
+  <button class="time-btn active" data-days="30">30D</button>
+  <button class="time-btn" data-days="90">90D</button>
+</div>
+
+<div class="auth-bar" id="authBar" style="display:none; padding-bottom: 16px;">
+  <button class="auth-btn" onclick="requestAuth()">Connect to BigQuery</button>
+  <span style="color: var(--text-dim); font-size: 13px; margin-left: 12px;">OAuth required to query the data warehouse</span>
+</div>
+
+<div class="dashboard" id="dashboardContent">
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div class="loading-text">Connecting to BigQuery...</div>
+  </div>
+</div>
+
+<script src="/client/quick.js"></script>
+<script src="https://quickcomments.quick.shopify.io/quickcomments.min.js"></script>
+<script>
+const WALLET_COLORS = {
+  'shopify_pay':          '#00c98d',
+  'apple_pay':            '#a855f7',
+  'google_pay':           '#3b82f6',
+  'shopify_installments': '#f59e0b',
+  'shop_pay_installments':'#f59e0b',
+  'samsung_pay':          '#ef4444',
+  'meta_pay':             '#ec4899',
+  'amazon_pay':           '#f97316',
+  'buy_with_prime':       '#f97316',
+  'No Wallet':            '#475569',
+  'Other Wallets':        '#8b5cf6',
+};
+
+const PAYMENT_COLORS = [
+  '#008060', '#3b82f6', '#a855f7', '#f59e0b', '#06b6d4',
+  '#ec4899', '#ef4444', '#84cc16', '#f97316', '#8b5cf6',
+  '#14b8a6', '#e879f9', '#fbbf24', '#38bdf8', '#fb923c'
+];
+
+function getWalletColor(wallet) {
+  return WALLET_COLORS[wallet] || '#64748b';
+}
+
+function formatUSD(n) {
+  if (n == null) return '—';
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatUSDCompact(n) {
+  if (n == null) return '—';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+  return '$' + Math.round(n);
+}
+
+function formatNumber(n) {
+  if (n == null) return '—';
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function friendlyWallet(name) {
+  const map = {
+    'shopify_pay': 'Shop Pay',
+    'apple_pay': 'Apple Pay',
+    'google_pay': 'Google Pay',
+    'shopify_installments': 'Shop Pay Installments',
+    'shop_pay_installments': 'Shop Pay Installments',
+    'samsung_pay': 'Samsung Pay',
+    'meta_pay': 'Meta Pay',
+    'amazon_pay': 'Amazon Pay',
+    'buy_with_prime': 'Buy with Prime',
+    'No Wallet': 'No Wallet (Direct)',
+    'Other Wallets': 'Other Wallets',
+  };
+  return map[name] || name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function friendlyPaymentType(name) {
+  const map = {
+    'card': 'Credit / Debit Card',
+    'shopify_installments': 'Shop Pay Installments',
+    'shop_pay_installments': 'Shop Pay Installments',
+    'klarna_pay_later': 'Klarna',
+    'paypal': 'PayPal',
+    'ideal': 'iDEAL',
+    'bancontact': 'Bancontact',
+    'affirm_pay_later': 'Affirm',
+    'afterpay_pay_later': 'Afterpay',
+    'sezzle_pay_later': 'Sezzle',
+  };
+  return map[name] || name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+let currentDays = 30;
+let chartsRendered = {};
+
+function buildQueries(days) {
+  const interval = `INTERVAL ${days} DAY`;
+  const extractBuffer = `INTERVAL ${days + 5} DAY`;
+
+  return {
+    gpvByWallet: `
+      SELECT
+        COALESCE(card_wallet_type, 'No Wallet') AS wallet_type,
+        SUM(amount_presentment) AS gpv,
+        COUNT(*) AS txn_count,
+        COUNT(DISTINCT shop_id) AS shop_count,
+        COUNT(DISTINCT order_id) AS order_count,
+        AVG(amount_presentment) AS avg_txn
+      FROM \`shopify-dw.money_products.order_transactions_payments_summary\`
+      WHERE order_transaction_created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${interval})
+        AND order_transaction_kind = 'sale'
+        AND order_transaction_status = 'success'
+        AND is_shopify_payments_gateway = TRUE
+        AND is_test = FALSE
+        AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+      GROUP BY 1
+      ORDER BY gpv DESC
+    `,
+
+    gpvTrend: `
+      SELECT
+        DATE(order_transaction_created_at) AS date,
+        COALESCE(card_wallet_type, 'No Wallet') AS wallet_type,
+        SUM(amount_presentment) AS gpv,
+        COUNT(*) AS txn_count
+      FROM \`shopify-dw.money_products.order_transactions_payments_summary\`
+      WHERE order_transaction_created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${interval})
+        AND order_transaction_kind = 'sale'
+        AND order_transaction_status = 'success'
+        AND is_shopify_payments_gateway = TRUE
+        AND is_test = FALSE
+        AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+      GROUP BY 1, 2
+      ORDER BY date ASC
+    `,
+
+    gpvByPaymentType: `
+      SELECT
+        COALESCE(payment_details_type, 'Unknown') AS payment_type,
+        SUM(amount_presentment) AS gpv,
+        COUNT(*) AS txn_count,
+        COUNT(DISTINCT shop_id) AS shop_count,
+        AVG(amount_presentment) AS avg_txn
+      FROM \`shopify-dw.money_products.order_transactions_payments_summary\`
+      WHERE order_transaction_created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${interval})
+        AND order_transaction_kind = 'sale'
+        AND order_transaction_status = 'success'
+        AND is_test = FALSE
+        AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+      GROUP BY 1
+      ORDER BY gpv DESC
+      LIMIT 12
+    `,
+
+    gpvByCountry: `
+      SELECT
+        COALESCE(shop_country_name, 'Unknown') AS country,
+        COALESCE(shop_country_code, '??') AS country_code,
+        SUM(amount_presentment) AS gpv,
+        COUNT(*) AS txn_count,
+        COUNT(DISTINCT shop_id) AS shops_using,
+        AVG(amount_presentment) AS avg_txn
+      FROM \`shopify-dw.money_products.order_transactions_payments_summary\`
+      WHERE order_transaction_created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${interval})
+        AND order_transaction_kind = 'sale'
+        AND order_transaction_status = 'success'
+        AND card_wallet_type = 'shopify_pay'
+        AND is_test = FALSE
+        AND _extracted_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), ${extractBuffer})
+      GROUP BY 1, 2
+      ORDER BY gpv DESC
+      LIMIT 15
+    `
+  };
+}
+
+async function requestAuth() {
+  try {
+    await quick.auth.requestScopes([
+      'https://www.googleapis.com/auth/bigquery'
+    ]);
+    document.getElementById('authBar').style.display = 'none';
+    loadDashboard();
+  } catch (e) {
+    console.error('Auth failed:', e);
+  }
+}
+
+async function runQuery(sql) {
+  const { results } = await quick.dw.querySync(sql, {}, { timeoutMs: 120000, maxResults: 10000 });
+  return results;
+}
+
+async function loadDashboard() {
+  const loading = document.getElementById('loadingState');
+  loading.style.display = 'flex';
+  loading.querySelector('.loading-text').textContent = 'Querying BigQuery...';
+
+  document.getElementById('timeControls').style.display = 'flex';
+
+  const queries = buildQueries(currentDays);
+
+  try {
+    const [gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry] = await Promise.all([
+      runQuery(queries.gpvByWallet),
+      runQuery(queries.gpvTrend),
+      runQuery(queries.gpvByPaymentType),
+      runQuery(queries.gpvByCountry),
+    ]);
+
+    loading.style.display = 'none';
+    renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry);
+  } catch (err) {
+    loading.style.display = 'none';
+    document.getElementById('dashboardContent').innerHTML += `
+      <div class="error-state">
+        <strong>Query Error:</strong> ${err.message || 'Failed to load data from BigQuery.'}
+        <br><br>
+        Make sure you have BigQuery access to <code>shopify-dw.money_products</code>.
+        <br><br>
+        <em>If the column <code>amount_presentment</code> doesn't exist, check the table schema
+        for the correct amount column (e.g. <code>amount_usd</code>, <code>order_transaction_amount_shop_money</code>).</em>
+      </div>`;
+  }
+}
+
+function renderDashboard(gpvByWallet, gpvTrend, gpvByPaymentType, gpvByCountry) {
+  const totalGPV = gpvByWallet.reduce((s, r) => s + Number(r.gpv || 0), 0);
+  const shopPayRow = gpvByWallet.find(r => r.wallet_type === 'shopify_pay');
+  const shopPayGPV = shopPayRow ? Number(shopPayRow.gpv) : 0;
+  const shopPayPct = totalGPV > 0 ? ((shopPayGPV / totalGPV) * 100).toFixed(1) : '0';
+  const shopPayAvgTxn = shopPayRow ? Number(shopPayRow.avg_txn) : 0;
+  const totalTxns = gpvByWallet.reduce((s, r) => s + Number(r.txn_count), 0);
+  const shopPayTxns = shopPayRow ? Number(shopPayRow.txn_count) : 0;
+  const geoCountries = gpvByCountry.length;
+
+  const noWalletRow = gpvByWallet.find(r => r.wallet_type === 'No Wallet');
+  const noWalletAvg = noWalletRow ? Number(noWalletRow.avg_txn) : 0;
+  const atvLift = noWalletAvg > 0 ? (((shopPayAvgTxn - noWalletAvg) / noWalletAvg) * 100).toFixed(1) : null;
+
+  const content = document.getElementById('dashboardContent');
+  content.innerHTML = `
+    <div class="metrics-row" data-dashboard-element="kpi-cards">
+      <div class="metric-card hero">
+        <div class="metric-label">Shop Pay GPV</div>
+        <div class="metric-value money" style="color: var(--green-light);">${formatUSD(shopPayGPV)}</div>
+        <div class="metric-detail">${shopPayPct}% of Shopify Payments GPV (${formatUSD(totalGPV)} total)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Transaction Value</div>
+        <div class="metric-value money">${formatUSDCompact(shopPayAvgTxn)}</div>
+        <div class="metric-detail">${atvLift !== null ? (Number(atvLift) >= 0 ? `<span class="up">+${atvLift}%</span>` : `<span class="down">${atvLift}%</span>`) + ' vs non-wallet' : ''}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Shop Pay Transactions</div>
+        <div class="metric-value">${formatNumber(shopPayTxns)}</div>
+        <div class="metric-detail">of ${formatNumber(totalTxns)} total SP transactions</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active Countries</div>
+        <div class="metric-value">${geoCountries}</div>
+        <div class="metric-detail">Markets with Shop Pay GPV, last ${currentDays}d</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card" data-dashboard-element="gpv-trend-chart">
+        <div class="chart-title">Daily Shop Pay GPV <span class="source-tag">order_transactions_payments_summary</span></div>
+        <div class="chart-subtitle">USD volume by wallet type, last ${currentDays} days</div>
+        <div class="chart-container line">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card" data-dashboard-element="wallet-share-chart">
+        <div class="chart-title">GPV by Wallet</div>
+        <div class="chart-subtitle">Share of Shopify Payments GPV</div>
+        <div class="chart-container doughnut">
+          <canvas id="walletChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="chart-card" data-dashboard-element="payment-method-chart">
+        <div class="chart-title">Payment Method GPV</div>
+        <div class="chart-subtitle">All gateways — top payment types by USD volume</div>
+        <div class="chart-container bar">
+          <canvas id="paymentChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card" data-dashboard-element="country-table">
+        <div class="chart-title">Shop Pay GPV by Country</div>
+        <div class="chart-subtitle">Top markets by dollar volume</div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Country</th>
+                <th class="right">GPV</th>
+                <th class="right">Avg Txn</th>
+                <th class="right">Shops</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="geoTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderWalletChart(gpvByWallet, totalGPV);
+  renderTrendChart(gpvTrend);
+  renderPaymentChart(gpvByPaymentType);
+  renderGeoTable(gpvByCountry);
+}
+
+function renderWalletChart(data, total) {
+  const threshold = total * 0.005;
+  const meaningful = data.filter(r => r.wallet_type !== 'No Wallet' && Number(r.gpv) >= threshold);
+  const tiny = data.filter(r => r.wallet_type !== 'No Wallet' && Number(r.gpv) < threshold);
+  const otherGPV = tiny.reduce((s, r) => s + Number(r.gpv), 0);
+
+  const walletData = [...meaningful];
+  if (otherGPV > 0) {
+    walletData.push({ wallet_type: 'Other Wallets', gpv: otherGPV });
+  }
+  const noWallet = data.find(r => r.wallet_type === 'No Wallet');
+  if (noWallet) walletData.push(noWallet);
+
+  new Chart(document.getElementById('walletChart'), {
+    type: 'doughnut',
+    data: {
+      labels: walletData.map(r => friendlyWallet(r.wallet_type)),
+      datasets: [{
+        data: walletData.map(r => Number(r.gpv)),
+        backgroundColor: walletData.map(r => getWalletColor(r.wallet_type)),
+        borderColor: 'transparent',
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#94a3b8',
+            padding: 12,
+            font: { size: 12 },
+            usePointStyle: true,
+            pointStyleWidth: 10,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          borderColor: '#334155',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => {
+              const pct = ((ctx.raw / total) * 100).toFixed(1);
+              return ` ${ctx.label}: ${formatUSD(ctx.raw)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendChart(data) {
+  const dates = [...new Set(data.map(r => r.date.value || r.date))].sort();
+
+  const walletTotals = {};
+  data.forEach(r => {
+    walletTotals[r.wallet_type] = (walletTotals[r.wallet_type] || 0) + Number(r.gpv);
+  });
+  const topWallets = Object.entries(walletTotals)
+    .filter(([w]) => w !== 'No Wallet')
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([w]) => w);
+  topWallets.push('No Wallet');
+
+  const datasets = topWallets.map(wallet => {
+    const walletData = data.filter(r => r.wallet_type === wallet);
+    const dateMap = {};
+    walletData.forEach(r => {
+      const d = r.date.value || r.date;
+      dateMap[d] = Number(r.gpv);
+    });
+    return {
+      label: friendlyWallet(wallet),
+      data: dates.map(d => dateMap[d] || 0),
+      borderColor: getWalletColor(wallet),
+      backgroundColor: getWalletColor(wallet) + '15',
+      borderWidth: wallet === 'shopify_pay' ? 3 : 1.5,
+      fill: wallet === 'shopify_pay',
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+    };
+  });
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: dates.map(d => {
+        const dt = new Date(d + 'T00:00:00');
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }),
+      datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,41,59,0.5)' },
+          ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 11 } }
+        },
+        y: {
+          grid: { color: 'rgba(30,41,59,0.5)' },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11 },
+            callback: v => formatUSD(v)
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#94a3b8',
+            padding: 16,
+            font: { size: 11 },
+            usePointStyle: true,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          borderColor: '#334155',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${formatUSD(ctx.raw)}`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderPaymentChart(data) {
+  const labels = data.map(r => friendlyPaymentType(r.payment_type));
+  const values = data.map(r => Number(r.gpv));
+  const total = values.reduce((a, b) => a + b, 0);
+
+  new Chart(document.getElementById('paymentChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: PAYMENT_COLORS.slice(0, data.length),
+        borderRadius: 4,
+        borderSkipped: false,
+        barThickness: 20,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,41,59,0.5)' },
+          ticks: { color: '#64748b', font: { size: 11 }, callback: v => formatUSD(v) }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#94a3b8', font: { size: 11 } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          borderColor: '#334155',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => {
+              const pct = ((ctx.raw / total) * 100).toFixed(1);
+              return ` ${formatUSD(ctx.raw)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderGeoTable(data) {
+  const maxGPV = data.length > 0 ? Number(data[0].gpv) : 1;
+  const tbody = document.getElementById('geoTableBody');
+  tbody.innerHTML = data.map((r, i) => {
+    const gpv = Number(r.gpv);
+    const avgTxn = Number(r.avg_txn);
+    const shops = Number(r.shops_using);
+    const barWidth = Math.max(4, (gpv / maxGPV) * 100);
+    const pctClass = gpv / maxGPV > 0.3 ? 'high' : gpv / maxGPV > 0.1 ? 'mid' : 'low';
+    return `<tr>
+      <td class="rank">${i + 1}</td>
+      <td>${r.country}</td>
+      <td class="right">${formatUSDCompact(gpv)}</td>
+      <td class="right">${formatUSDCompact(avgTxn)}</td>
+      <td class="right">${formatNumber(shops)}</td>
+      <td><div class="bar-cell"><div class="mini-bar" style="width: ${barWidth}px;"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// Time controls
+document.querySelectorAll('.time-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDays = parseInt(btn.dataset.days);
+
+    Object.values(chartsRendered).forEach(c => c?.destroy?.());
+    chartsRendered = {};
+
+    loadDashboard();
+  });
+});
+
+// Boot
+async function init() {
+  try {
+    await quick.id.waitForUser();
+    try {
+      await quick.auth.requestScopes([
+        'https://www.googleapis.com/auth/bigquery'
+      ]);
+      loadDashboard();
+    } catch {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('authBar').style.display = 'block';
+    }
+  } catch (e) {
+    document.getElementById('loadingState').innerHTML = `
+      <div class="error-state">Unable to authenticate with Quick. Make sure you're on quick.shopify.io.</div>`;
+  }
+}
+
+init();
+</script>
+
+<div class="footer">
+  <span>Shop Pay GPV · Data from <code>shopify-dw.money_products.order_transactions_payments_summary</code></span>
+  <span>Built with Quick</span>
+</div>
+
+</body>
+</html>
